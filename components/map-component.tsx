@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
-import { Star, DollarSign, MapPin, Flame, FlameKindling } from "lucide-react"
+import { Star, DollarSign, MapPin, Flame, FlameKindling, X, Info } from "lucide-react"
 import type { google } from "google-maps"
 
 interface MapComponentProps {
@@ -23,6 +23,7 @@ export function MapComponent({ center, selectedPlace }: MapComponentProps) {
   const [placeDetails, setPlaceDetails] = useState<google.maps.places.PlaceResult | null>(null)
   const [heatmapVisible, setHeatmapVisible] = useState(true)
   const [heatmapRadius, setHeatmapRadius] = useState(25)
+  const [showDetailsPanel, setShowDetailsPanel] = useState(true)
 
   const generateRealHeatmapData = async (center: { lat: number; lng: number }) => {
     if (!mapInstanceRef.current) return []
@@ -322,6 +323,13 @@ export function MapComponent({ center, selectedPlace }: MapComponentProps) {
   }, [heatmapRadius])
 
   const displayPlace = placeDetails || selectedPlace
+  
+  // When a new place is selected, auto-open the details panel
+  useEffect(() => {
+    if (selectedPlace) {
+      setShowDetailsPanel(true)
+    }
+  }, [selectedPlace])
 
   return (
     <div className="relative w-full h-[70vh] rounded-lg overflow-hidden border border-border bg-muted">
@@ -362,9 +370,17 @@ export function MapComponent({ center, selectedPlace }: MapComponentProps) {
         </Card>
       </div>
 
-      {displayPlace && (
+      {/* Details + Nearby panel (left) */}
+      {displayPlace && showDetailsPanel && (
         <div className="absolute top-4 left-4 max-w-sm space-y-3">
-          <Card className="bg-background/95 backdrop-blur-sm border-border shadow-lg">
+          <Card className="relative bg-background/95 backdrop-blur-sm border-border shadow-lg">
+            <button
+              aria-label="Close details"
+              onClick={() => setShowDetailsPanel(false)}
+              className="absolute right-2 top-2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
             <CardContent className="p-4">
               <div className="space-y-3">
                 <div>
@@ -426,6 +442,18 @@ export function MapComponent({ center, selectedPlace }: MapComponentProps) {
             </Card>
           )}
         </div>
+      )}
+
+      {/* Reopen button when details are hidden */}
+      {!showDetailsPanel && (
+        <button
+          onClick={() => setShowDetailsPanel(true)}
+          className="absolute top-4 left-4 bg-background/95 border border-border text-foreground rounded-md px-2.5 py-1.5 shadow-sm hover:bg-muted transition-colors flex items-center gap-1"
+          aria-label="Show details"
+        >
+          <Info className="h-4 w-4" />
+          <span className="text-sm">Show details</span>
+        </button>
       )}
 
       {!isLoaded && (
