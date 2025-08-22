@@ -70,10 +70,14 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-6xl mx-auto px-6 py-12">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-semibold text-foreground mb-2">Maps Search</h1>
-          <p className="text-muted-foreground text-lg">Search locations and visualize heatmaps</p>
+      <div className="max-w-6xl mx-auto px-6 py-10">
+        <div className="text-center mb-8 md:mb-12">
+          <h1 className="text-3xl md:text-4xl font-semibold text-foreground mb-3">
+            Find places fast. See patterns instantly.
+          </h1>
+          <p className="text-muted-foreground text-base md:text-lg">
+            Search any location and visualize activity with an intuitive heatmap.
+          </p>
         </div>
 
         {!isGoogleMapsLoaded ? (

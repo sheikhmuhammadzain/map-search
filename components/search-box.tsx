@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { Search, MapPin, GraduationCap, ShoppingBag, Coffee, Hospital, Car } from "lucide-react"
+import { Search, MapPin, GraduationCap, ShoppingBag, Coffee, Hospital, Car, X, Crosshair } from "lucide-react"
 import type { google } from "google-maps"
 
 interface SearchBoxProps {
@@ -25,6 +25,7 @@ export function SearchBox({ onPlaceSelect }: SearchBoxProps) {
   const [predictions, setPredictions] = useState<google.maps.places.AutocompletePrediction[]>([])
   const [isOpen, setIsOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [activeIndex, setActiveIndex] = useState<number>(-1)
   const [activeCategory, setActiveCategory] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const autocompleteService = useRef<google.maps.places.AutocompleteService | null>(null)
@@ -42,6 +43,7 @@ export function SearchBox({ onPlaceSelect }: SearchBoxProps) {
 
   const handleInputChange = (value: string) => {
     setQuery(value)
+    setActiveIndex(-1)
 
     if (value.length > 2 && autocompleteService.current) {
       setIsLoading(true)
@@ -110,6 +112,67 @@ export function SearchBox({ onPlaceSelect }: SearchBoxProps) {
     }
   }
 
+  const selectPredictionByIndex = (index: number) => {
+    const item = predictions[index]
+    if (!item) return
+    handlePlaceSelect(item.place_id, item.description)
+  }
+
+  const onKeyDown: React.KeyboardEventHandler<HTMLInputElement> = (e) => {
+    if (!isOpen) return
+    if (e.key === "ArrowDown") {
+      e.preventDefault()
+      setActiveIndex((prev) => Math.min(prev + 1, predictions.length - 1))
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault()
+      setActiveIndex((prev) => Math.max(prev - 1, 0))
+    } else if (e.key === "Enter") {
+      if (activeIndex >= 0) {
+        e.preventDefault()
+        selectPredictionByIndex(activeIndex)
+      }
+    } else if (e.key === "Escape") {
+      setIsOpen(false)
+      setActiveIndex(-1)
+    }
+  }
+
+  const clearSearch = () => {
+    setQuery("")
+    setPredictions([])
+    setIsOpen(false)
+    setActiveIndex(-1)
+    inputRef.current?.focus()
+  }
+
+  const useMyLocation = () => {
+    if (!navigator.geolocation || !placesService.current) return
+    setIsLoading(true)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords
+        const request: google.maps.places.PlaceDetailsRequest = {
+          placeId: "",
+        } as any
+        // Reverse geocode via Places nearby one result
+        const mapDiv = document.createElement("div")
+        const tempMap = new window.google.maps.Map(mapDiv, { center: { lat: latitude, lng: longitude }, zoom: 15 })
+        const svc = new window.google.maps.places.PlacesService(tempMap)
+        const location = new window.google.maps.LatLng(latitude, longitude)
+        svc.nearbySearch({ location, radius: 50 }, (results, status) => {
+          setIsLoading(false)
+          if (status === window.google.maps.places.PlacesServiceStatus.OK && results && results[0]) {
+            onPlaceSelect(results[0])
+            setQuery(results[0].name || "Current location")
+            setIsOpen(false)
+          }
+        })
+      },
+      () => setIsLoading(false),
+      { enableHighAccuracy: true, timeout: 8000 },
+    )
+  }
+
   return (
     <div className="relative w-full max-w-2xl mx-auto space-y-4">
       <div className="flex flex-wrap gap-2 justify-center">
@@ -146,17 +209,37 @@ export function SearchBox({ onPlaceSelect }: SearchBoxProps) {
           placeholder={`Search for ${searchCategories[activeCategory].name.toLowerCase()}...`}
           value={query}
           onChange={(e) => handleInputChange(e.target.value)}
+          onKeyDown={onKeyDown}
           className="pl-12 pr-4 py-3 h-12 text-base border border-border rounded-lg bg-background focus:ring-2 focus:ring-ring focus:border-transparent"
         />
+        {query && (
+          <button
+            onClick={clearSearch}
+            aria-label="Clear search"
+            className="absolute right-12 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+        <button
+          onClick={useMyLocation}
+          aria-label="Use my location"
+          title="Use my location"
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+        >
+          <Crosshair className="h-4 w-4" />
+        </button>
       </div>
 
       {isOpen && predictions.length > 0 && (
         <div className="absolute top-full left-0 right-0 mt-2 bg-background border border-border rounded-lg shadow-lg z-50 overflow-hidden max-h-80 overflow-y-auto">
-          {predictions.map((prediction) => (
+          {predictions.map((prediction, idx) => (
             <button
               key={prediction.place_id}
               onClick={() => handlePlaceSelect(prediction.place_id, prediction.description)}
-              className="w-full text-left p-4 hover:bg-muted transition-colors border-b border-border last:border-b-0"
+              className={`w-full text-left p-4 transition-colors border-b border-border last:border-b-0 ${
+                idx === activeIndex ? "bg-muted" : "hover:bg-muted"
+              }`}
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">

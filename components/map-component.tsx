@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
-import { Star, DollarSign, MapPin } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Slider } from "@/components/ui/slider"
+import { Star, DollarSign, MapPin, Flame, FlameKindling } from "lucide-react"
 import type { google } from "google-maps"
 
 interface MapComponentProps {
@@ -19,6 +21,8 @@ export function MapComponent({ center, selectedPlace }: MapComponentProps) {
   const [isLoaded, setIsLoaded] = useState(false)
   const [nearbyPlaces, setNearbyPlaces] = useState<google.maps.places.PlaceResult[]>([])
   const [placeDetails, setPlaceDetails] = useState<google.maps.places.PlaceResult | null>(null)
+  const [heatmapVisible, setHeatmapVisible] = useState(true)
+  const [heatmapRadius, setHeatmapRadius] = useState(25)
 
   const generateRealHeatmapData = async (center: { lat: number; lng: number }) => {
     if (!mapInstanceRef.current) return []
@@ -194,8 +198,8 @@ export function MapComponent({ center, selectedPlace }: MapComponentProps) {
         if (heatmapData.length > 0) {
           const heatmap = new window.google.maps.visualization.HeatmapLayer({
             data: heatmapData,
-            map: map,
-            radius: 25,
+            map: heatmapVisible ? map : null,
+            radius: heatmapRadius,
             opacity: 0.7,
             gradient: [
               "rgba(0, 255, 255, 0)",
@@ -278,8 +282,8 @@ export function MapComponent({ center, selectedPlace }: MapComponentProps) {
           if (heatmapData.length > 0) {
             const heatmap = new window.google.maps.visualization.HeatmapLayer({
               data: heatmapData,
-              map: mapInstanceRef.current,
-              radius: 25,
+              map: heatmapVisible ? mapInstanceRef.current : null,
+              radius: heatmapRadius,
               opacity: 0.7,
               gradient: [
                 "rgba(0, 255, 255, 0)",
@@ -306,11 +310,57 @@ export function MapComponent({ center, selectedPlace }: MapComponentProps) {
     }
   }, [selectedPlace])
 
+  useEffect(() => {
+    if (!heatmapRef.current) return
+    heatmapRef.current.setMap(heatmapVisible ? mapInstanceRef.current : null)
+  }, [heatmapVisible])
+
+  useEffect(() => {
+    if (!heatmapRef.current) return
+    // @ts-ignore Google types miss set('radius')
+    heatmapRef.current.set("radius", heatmapRadius)
+  }, [heatmapRadius])
+
   const displayPlace = placeDetails || selectedPlace
 
   return (
     <div className="relative w-full h-[70vh] rounded-lg overflow-hidden border border-border bg-muted">
       <div ref={mapRef} className="w-full h-full" />
+
+      <div className="absolute top-4 right-4 w-64">
+        <Card className="bg-background/95 backdrop-blur-sm border-border shadow-lg">
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                <Flame className="h-4 w-4 text-orange-500" /> Heatmap
+              </div>
+              <Button
+                variant={heatmapVisible ? "secondary" : "outline"}
+                size="sm"
+                onClick={() => setHeatmapVisible((v) => !v)}
+                className="h-8"
+              >
+                {heatmapVisible ? "On" : "Off"}
+              </Button>
+            </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>Radius</span>
+                <span>{heatmapRadius}px</span>
+              </div>
+              <Slider
+                min={10}
+                max={60}
+                value={[heatmapRadius] as any}
+                onValueChange={(vals: number[] | any) => {
+                  const next = Array.isArray(vals) ? vals[0] : vals
+                  setHeatmapRadius(Number(next))
+                }}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {displayPlace && (
         <div className="absolute top-4 left-4 max-w-sm space-y-3">
