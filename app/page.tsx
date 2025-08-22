@@ -1,18 +1,11 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { SearchBox } from "@/components/search-box"
+import MapsSearchBar from "@/components/maps-search-bar"
 import { MapComponent } from "@/components/map-component"
+import type { google } from "google-maps"
 
-interface PlaceResult {
-  name?: string
-  geometry?: {
-    location?: {
-      lat(): number
-      lng(): number
-    }
-  }
-}
+type PlaceResult = google.maps.places.PlaceResult
 
 export default function HomePage() {
   const [selectedPlace, setSelectedPlace] = useState<PlaceResult | null>(null)
@@ -68,6 +61,56 @@ export default function HomePage() {
     }
   }
 
+  const handleUseLocation = () => {
+    if (!navigator.geolocation) {
+      console.error("Geolocation is not supported by this browser")
+      return
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const newCenter = {
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        }
+        console.log("[v0] User location:", newCenter)
+        setMapCenter(newCenter)
+        
+        // Create a mock place result for user's location
+        const userLocationPlace: PlaceResult = {
+          name: "Your Location",
+          geometry: {
+            location: new window.google.maps.LatLng(
+              position.coords.latitude,
+              position.coords.longitude
+            ),
+            viewport: new window.google.maps.LatLngBounds(
+              new window.google.maps.LatLng(
+                position.coords.latitude - 0.01,
+                position.coords.longitude - 0.01
+              ),
+              new window.google.maps.LatLng(
+                position.coords.latitude + 0.01,
+                position.coords.longitude + 0.01
+              )
+            ),
+          },
+          formatted_address: "Your Current Location",
+          place_id: "user-location",
+        }
+        setSelectedPlace(userLocationPlace)
+      },
+      (error) => {
+        console.error("Error getting user location:", error)
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 8000,
+        maximumAge: 60000,
+      }
+    )
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-6xl mx-auto px-6 py-10">
@@ -93,7 +136,10 @@ export default function HomePage() {
         ) : (
           <>
             <div className="mb-8">
-              <SearchBox onPlaceSelect={handlePlaceSelect} />
+              <MapsSearchBar 
+                onPlaceSelect={handlePlaceSelect}
+                onUseLocation={handleUseLocation}
+              />
             </div>
 
             <div className="w-full">
