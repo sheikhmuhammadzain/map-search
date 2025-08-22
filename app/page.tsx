@@ -115,7 +115,7 @@ export default function HomePage() {
     <div className="min-h-screen bg-background">
       <div className="max-w-6xl mx-auto px-6 py-10">
         <div className="text-center mb-8 md:mb-12">
-          <h1 className="text-5xl tracking-tighter  md:text-4xl font-semibold text-foreground mb-3">
+          <h1 className="text-5xl tracking-tighter md:text-4xl font-semibold text-foreground mb-3 text-3d">
             Find places fast. See patterns instantly.
           </h1>
           <p className="text-muted-foreground text-base md:text-lg">

@@ -24,6 +24,7 @@ export function MapComponent({ center, selectedPlace }: MapComponentProps) {
   const [heatmapVisible, setHeatmapVisible] = useState(true)
   const [heatmapRadius, setHeatmapRadius] = useState(25)
   const [showDetailsPanel, setShowDetailsPanel] = useState(true)
+  const [showHeatmapPanel, setShowHeatmapPanel] = useState(true)
 
   const generateRealHeatmapData = async (center: { lat: number; lng: number }) => {
     if (!mapInstanceRef.current) return []
@@ -199,7 +200,7 @@ export function MapComponent({ center, selectedPlace }: MapComponentProps) {
         if (heatmapData.length > 0) {
           const heatmap = new window.google.maps.visualization.HeatmapLayer({
             data: heatmapData,
-            map: heatmapVisible ? map : null,
+            map: heatmapVisible ? map : undefined,
             radius: heatmapRadius,
             opacity: 0.7,
             gradient: [
@@ -283,7 +284,7 @@ export function MapComponent({ center, selectedPlace }: MapComponentProps) {
           if (heatmapData.length > 0) {
             const heatmap = new window.google.maps.visualization.HeatmapLayer({
               data: heatmapData,
-              map: heatmapVisible ? mapInstanceRef.current : null,
+              map: heatmapVisible && mapInstanceRef.current ? mapInstanceRef.current : undefined,
               radius: heatmapRadius,
               opacity: 0.7,
               gradient: [
@@ -335,40 +336,60 @@ export function MapComponent({ center, selectedPlace }: MapComponentProps) {
     <div className="relative w-full h-[70vh] rounded-lg overflow-hidden border border-border bg-muted">
       <div ref={mapRef} className="w-full h-full" />
 
-      <div className="absolute top-4 right-4 w-64">
-        <Card className="bg-background/95 backdrop-blur-sm border-border shadow-lg">
-          <CardContent className="p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                <Flame className="h-4 w-4 text-orange-500" /> Heatmap
+      {showHeatmapPanel && (
+        <div className="absolute top-4 right-4 w-64">
+          <Card className="relative bg-background/95 backdrop-blur-sm border-border shadow-lg">
+            <button
+              aria-label="Close heatmap controls"
+              onClick={() => setShowHeatmapPanel(false)}
+              className="absolute right-2 top-2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <CardContent className="p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+                  <Flame className="h-4 w-4 text-orange-500" /> Heatmap
+                </div>
+                <Button
+                  variant={heatmapVisible ? "secondary" : "outline"}
+                  size="sm"
+                  onClick={() => setHeatmapVisible((v) => !v)}
+                  className="h-8"
+                >
+                  {heatmapVisible ? "On" : "Off"}
+                </Button>
               </div>
-              <Button
-                variant={heatmapVisible ? "secondary" : "outline"}
-                size="sm"
-                onClick={() => setHeatmapVisible((v) => !v)}
-                className="h-8"
-              >
-                {heatmapVisible ? "On" : "Off"}
-              </Button>
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs text-muted-foreground">
-                <span>Radius</span>
-                <span>{heatmapRadius}px</span>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Radius</span>
+                  <span>{heatmapRadius}px</span>
+                </div>
+                <Slider
+                  min={10}
+                  max={60}
+                  value={[heatmapRadius] as any}
+                  onValueChange={(vals: number[] | any) => {
+                    const next = Array.isArray(vals) ? vals[0] : vals
+                    setHeatmapRadius(Number(next))
+                  }}
+                />
               </div>
-              <Slider
-                min={10}
-                max={60}
-                value={[heatmapRadius] as any}
-                onValueChange={(vals: number[] | any) => {
-                  const next = Array.isArray(vals) ? vals[0] : vals
-                  setHeatmapRadius(Number(next))
-                }}
-              />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {!showHeatmapPanel && (
+        <button
+          onClick={() => setShowHeatmapPanel(true)}
+          className="absolute top-4 right-4 bg-background/95 border border-border text-foreground rounded-md px-2.5 py-1.5 shadow-sm hover:bg-muted transition-colors flex items-center gap-1"
+          aria-label="Show heatmap controls"
+        >
+          <Flame className="h-4 w-4 text-orange-500" />
+          <span className="text-sm">Heatmap</span>
+        </button>
+      )}
 
       {/* Details + Nearby panel (left) */}
       {displayPlace && showDetailsPanel && (
