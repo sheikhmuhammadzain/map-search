@@ -80,8 +80,9 @@ function MapsSearchBar({ onPlaceSelect, onUseLocation }: MapsSearchBarProps) {
   const [isFocused, setIsFocused] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
+  const [requestId, setRequestId] = useState(0) // Track request IDs for race condition prevention
   const debouncedQuery = useDebounce(query, 300)
-  
+
   const autocompleteService = useRef<google.maps.places.AutocompleteService | null>(null)
   const placesService = useRef<google.maps.places.PlacesService | null>(null)
 
@@ -135,7 +136,7 @@ function MapsSearchBar({ onPlaceSelect, onUseLocation }: MapsSearchBarProps) {
     {
       id: "gas-stations",
       label: "Find gas stations",
-      icon: <Car className="h-4 w-4 text-blue-600" />,
+      icon: <Car className="h-4 w-4 text-blue-600 ml" />,
       description: "Fuel stations",
       short: "⌘G",
       end: "Category",
@@ -153,27 +154,54 @@ function MapsSearchBar({ onPlaceSelect, onUseLocation }: MapsSearchBarProps) {
     }
   }, [])
 
-  // Search for places when query changes
+  // Search for places when query changes (with debouncing and request cancellation)
   useEffect(() => {
     if (!debouncedQuery || debouncedQuery.length < 2 || !autocompleteService.current) {
       setPredictions([])
+      setIsLoading(false)
       return
     }
 
+    // Generate new request ID to track this specific request
+    const currentRequestId = requestId + 1
+    setRequestId(currentRequestId)
     setIsLoading(true)
+
     const searchRequest: google.maps.places.AutocompletionRequest = {
       input: debouncedQuery,
     }
 
+    console.log(`[MapsSearchBar] Making API call #${currentRequestId} for: "${debouncedQuery}"`)
+
     autocompleteService.current.getPlacePredictions(searchRequest, (predictions, status) => {
-      setIsLoading(false)
-      if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
-        setPredictions(predictions.slice(0, 5)) // Limit to 5 results
+      // Only update if this request is still the most recent one
+      if (currentRequestId === requestId + 1) {
+        setIsLoading(false)
+        if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
+          setPredictions(predictions.slice(0, 5)) // Limit to 5 results
+          console.log(`[MapsSearchBar] Request #${currentRequestId} found ${predictions.length} results for: "${debouncedQuery}"`)
+        } else {
+          setPredictions([])
+          console.log(`[MapsSearchBar] Request #${currentRequestId} no results or error for: "${debouncedQuery}"`, status)
+        }
       } else {
-        setPredictions([])
+        console.log(`[MapsSearchBar] Ignoring outdated request #${currentRequestId} for: "${debouncedQuery}"`)
       }
     })
   }, [debouncedQuery])
+
+  // Update request ID when debounced query changes
+  useEffect(() => {
+    setRequestId(prev => prev + 1)
+  }, [debouncedQuery])
+
+  // Clear predictions when query is cleared
+  useEffect(() => {
+    if (!query) {
+      setPredictions([])
+      setIsLoading(false)
+    }
+  }, [query])
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setQuery(e.target.value)
